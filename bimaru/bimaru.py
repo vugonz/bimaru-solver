@@ -1,10 +1,6 @@
-# bimaru.py: Template para implementação do projeto de Inteligência Artificial 2022/2023.
-# Devem alterar as classes e funções neste ficheiro de acordo com as instruções do enunciado.
-# Além das funções e classes já definidas, podem acrescentar outras que considerem pertinentes.
-
-# Grupo 00:
-# 00000 Nome1
-# 00000 Nome2
+# Grupo 133:
+# 93075 Gonçalo Azevedo
+# 99141 Duarte Gonçalves
 
 import sys
 import numpy
@@ -19,8 +15,8 @@ from search import (
     recursive_best_first_search,
 )
 
-
 HINTS = []
+
 
 class BimaruState:
     state_id = 0
@@ -32,6 +28,7 @@ class BimaruState:
 
     def __lt__(self, other):
         return self.id < other.id
+
 
 class Board:
     def __init__(self,
@@ -148,7 +145,7 @@ class Board:
                     else:
                         actions.append((i, j, "v", size))
                         actions.append((i, j, "h", size))
-                    #actions.append((i, j, "w"))
+                    # actions.append((i, j, "w"))
 
         return [action for action in actions if self.is_valid_action(*action)]
 
@@ -163,7 +160,7 @@ class Board:
                 actions.append((row, col, "h", i))
                 # remove duplicate hints to this ship
                 for hint in self.hints:
-                    if hint[0] != row: # different row
+                    if hint[0] != row:  # different row
                         continue
                     for x in range(1, i):
                         if hint[1] == col + x:
@@ -509,6 +506,7 @@ class Board:
 
         return "\n".join("".join(cell for cell in row) for row in self.table).replace("w", ".")
 
+
 class Bimaru(Problem):
     def __init__(self, board: Board):
         """O construtor especifica o estado inicial."""
@@ -535,16 +533,16 @@ class Bimaru(Problem):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
-        #print(state.board)
+        # print(state.board)
         return state.board.is_complete()
 
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
         raise NotImplemented
 
+
 if __name__ == "__main__":
     board = Board.parse_instance()
     problem = Bimaru(board)
     goal = depth_first_tree_search(problem)
     print(goal.state.board)
-    a = 1
