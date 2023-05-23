@@ -7,7 +7,6 @@
 # 00000 Nome2
 
 import sys
-
 import numpy
 
 from search import (
@@ -36,9 +35,9 @@ class BimaruState:
 
 class Board:
     def __init__(self,
-                 table: numpy.chararray,
-                 rows: numpy.chararray,
-                 cols: numpy.chararray,
+                 table: numpy.ndarray,
+                 rows: list,
+                 cols: list,
                  hints: list,
                  ships: list,
                  has_hints: bool,
@@ -504,18 +503,11 @@ class Board:
         return cls(table, rows, cols, hints, ships, len(hints) != 0)
 
     def __str__(self):
-        s = ""
+        # fill hints
         for hint in HINTS:
             self.table[hint[0]][hint[1]] = hint[2]
-        for row in self.table:
-            for cell in row:
-                if cell != "w":
-                    s += cell
-                else:
-                    s += "."
-            s += "\n"
 
-        return s[:-1]
+        return "\n".join("".join(cell for cell in row) for row in self.table).replace("w", ".")
 
 class Bimaru(Problem):
     def __init__(self, board: Board):
@@ -548,7 +540,7 @@ class Bimaru(Problem):
 
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
-        return node.state.board.ships[0] + node.state.board.ships[0]*2 + node.state.board.ships[0]*3 + node.state.board.ships[0]*4
+        raise NotImplemented
 
 if __name__ == "__main__":
     board = Board.parse_instance()
