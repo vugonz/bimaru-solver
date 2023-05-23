@@ -62,30 +62,71 @@ class Board:
     def action(self, row, col, operation, size=0):
         new_board = self.board_copy()
 
-        try:
-            if operation == "v":
-                new_board.add_vertical_ship(row, col, size)
-            elif operation == "h":
-                new_board.add_horizontal_ship(row, col, size)
-            elif operation == "w":
-                new_board.add_water(row, col)
-            else:
-                new_board.add_single_ship(row, col)
-        except (InvalidCell, InvalidShip):
-            new_board.is_valid = False
+        if operation == "v":
+            new_board.add_vertical_ship(row, col, size)
+        elif operation == "h":
+            new_board.add_horizontal_ship(row, col, size)
+        elif operation == "w":
+            new_board.add_water(row, col)
+        else:
+            new_board.add_single_ship(row, col)
 
         return new_board
 
     def is_valid_action(self, row, col, operation, size=0):
         if operation == "v":
-            ...
-        elif operation == "h":
-            ...
-        elif operation == "w":
-            ...
-        else:
-            ...
+            # ship will fall out
+            if row + size > 10:
+                return False
 
+            # no space in col
+            if self.cols[col] < size:
+                return False
+
+            # rows have no space
+            for i in range(row, row + size):
+                if not self.rows[i]:
+                    return False
+
+            if not self.is_valid_top_cell(row, col):
+                return False
+
+            i = 1
+            for i in range(2, size):
+                if not self.is_valid_vertical_middle_cell(row + i - 1, col):
+                    return False
+
+            return self.is_valid_bottom_cell(row + i, col)
+
+        elif operation == "h":
+            # ship will fall out
+            if col + size > 10:
+                return False
+
+            # no space in col
+            if self.rows[row] < size:
+                return False
+
+            # cols have no space
+            for i in range(col, col + size):
+                if not self.cols[i]:
+                    return False
+
+            if not self.is_valid_left_cell(row, col):
+                return False
+
+            i = 1
+            for i in range(2, size):
+                if not self.is_valid_horizontal_middle_cell(row, col + i - 1):
+                    return False
+
+            return self.is_valid_right_cell(row, col + i)
+
+        elif operation == "c":
+            return self.is_valid_center_cell(row, col)
+        # water operations are always valid
+        else:
+            return True
 
     def get_valid_actions(self):
         if self.has_hints:
@@ -93,9 +134,12 @@ class Board:
 
         actions = []
         for i in range(10):
+            if not self.rows[i]:
+                continue
             for j in range(10):
-                if self.table[i][j] == "*" and self.rows[i] and self.cols[j]:
-                    #actions.append((i, j, "w"))
+                if not self.cols[j]:
+                    continue
+                if self.table[i][j] == "*":
                     if self.ships[0]:
                         actions.append((i, j, "c"))
                     for s in range(2, 5):
@@ -103,32 +147,62 @@ class Board:
                             actions.append((i, j, "v", s))
                             actions.append((i, j, "h", s))
 
-        return actions
+        return [action for action in actions if self.is_valid_action(*action)]
 
     def get_hint_actions(self, row: int, col: int, letter: str):
         actions = []
 
         if letter == "L":
             for i in range(2, 5):
-                if self.ships[i - 1]:
-                    actions.append((row, col, "h", i))
-                    # remove hints to this ship
-                    for j in range(len(self.hints)):
-                        for x in range(1, i):
-                            if self.hints[j][0] == row:
-                                self.hints.pop(j)
+                # no ships left
+                if not self.ships[i - 1]:
+                    continue
+                actions.append((row, col, "h", i))
+                # remove duplicate hints to this ship
+                for hint in self.hints:
+                    if hint[0] != row: # different row
+                        continue
+                    for x in range(1, i):
+                        if hint[1] == col + x:
+                            self.hints.remove(hint)
+                            break
         elif letter == "T":
             for i in range(2, 5):
-                if self.ships[i - 1]:
-                    actions.append((row, col, "v", i))
+                if not self.ships[i - 1]:
+                    continue
+                actions.append((row, col, "v", i))
+                for hint in self.hints:
+                    if hint[1] != col:
+                        continue
+                    for x in range(1, i):
+                        if hint[0] == row + x:
+                            self.hints.remove(hint)
+                            break
         elif letter == "R":
             for i in range(2, 5):
-                if self.ships[i - 1]:
-                    actions.append((row, col - i + 1, "h", i))
+                if not self.ships[i - 1]:
+                    continue
+                actions.append((row, col - i + 1, "h", i))
+                for hint in self.hints:
+                    if hint[0] != row:
+                        continue
+                    for x in range(1, i):
+                        if hint[1] == col - x:
+                            self.hints.remove(hint)
+                            break
         elif letter == "B":
             for i in range(2, 5):
-                if self.ships[i - 1]:
-                    actions.append((row - i + 1, col, "v", i))
+                if not self.ships[i - 1]:
+                    continue
+                actions.append((row - i + 1, col, "v", i))
+                for hint in self.hints:
+                    if hint[1] != col:
+                        continue
+                    for x in range(1, i):
+                        if hint[0] == row - x:
+                            self.hints.remove(hint)
+                            break
+
         elif letter == "M":
             if self.ships[2]:
                 actions.append((row - 1, col, "v", 3))
@@ -139,74 +213,53 @@ class Board:
                 actions.append((row, col - 1, "h", 4))
                 actions.append((row, col - 2, "h", 4))
 
-        return actions
+        return [action for action in actions if self.is_valid_action(*action)]
 
     def is_complete(self):
-        print(self)
-        print("\n")
         return all(x == 0 for x in self.ships + self.cols + self.rows)
 
     #############
     # Actions
     #############
     def add_horizontal_ship(self, row, col, size):
-        # ship will fall out
-        if col + size > 10:
-            raise InvalidShip
-
-        # no space in row
-        if self.rows[row] < size:
-            raise InvalidShip
-        self.rows[row] -= size
-
-        # no space in columns
-        for i in range(col, col + size):
-            if not self.cols[i]:
-                raise InvalidShip
-            self.cols[i] -= 1
-
         self.ships[size - 1] -= 1
 
+        self.rows[row] -= size
+
         self.add_left_cell(row, col)
+        self.cols[col] -= 1
 
         # add middle
         i = 0
         for i in range(1, size - 1):
             self.add_middle_horizontal_cell(row, col + i)
+            self.cols[col + i] -= 1
 
         self.add_right_cell(row, col + i + 1)
+        self.cols[col + i + 1] -= 1
 
     def add_vertical_ship(self, row, col, size):
-        if row + size > 10:
-            raise InvalidShip
-
-        if self.cols[col] < size:
-            raise InvalidShip
-        self.cols[col] -= size
-
-        for i in range(row, row + size):
-            if not self.rows[i]:
-                raise InvalidShip
-            self.rows[i] -= 1
-
         self.ships[size - 1] -= 1
 
+        self.cols[col] -= size
+
         self.add_top_cell(row, col)
+        self.rows[row] -= 1
 
         # add middle
         i = 0
         for i in range(1, size - 1):
             self.add_middle_vertical_cell(row + i, col)
+            self.rows[row + i] -= 1
 
         self.add_bottom_cell(row + i + 1, col)
+        self.rows[row + i + 1] -= 1
 
     def add_single_ship(self, row, col):
-        if not self.rows[row] or not self.cols[col]:
-            raise InvalidShip
+        self.ships[0] -= 1
 
         self.rows[row] -= 1
         self.cols[col] -= 1
-        self.ships[0] -= 1
 
         self.add_center_cell(row, col)
 
@@ -217,8 +270,6 @@ class Board:
     # Piece adders
     #########################
     def add_left_cell(self, row, col):
-        if not self.is_valid_left_cell(row, col):
-            raise InvalidCell
         self.table[row][col] = "l"
         # diagonals
         self.set_diagonals(row, col, "w")
@@ -228,23 +279,17 @@ class Board:
         self.set_cell(row, col - 1, "w")
 
     def add_middle_horizontal_cell(self, row, col):
-        if not self.is_valid_horizontal_middle_cell(row, col):
-            raise InvalidCell
         self.table[row][col] = "m"
         self.set_cell(row - 1, col + 1, "w")
         self.set_cell(row + 1, col + 1, "w")
 
     def add_right_cell(self, row, col):
-        if not self.is_valid_right_cell(row, col):
-            raise InvalidCell
         self.table[row][col] = "r"
         self.set_cell(row - 1, col + 1, "w")
         self.set_cell(row + 1, col + 1, "w")
         self.set_cell(row, col + 1, "w")
 
     def add_top_cell(self, row, col):
-        if not self.is_valid_top_cell(row, col):
-            raise InvalidCell
         self.table[row][col] = "t"
         # diagonals
         self.set_diagonals(row, col, "w")
@@ -254,32 +299,23 @@ class Board:
         self.set_cell(row - 1, col, "w")
 
     def add_middle_vertical_cell(self, row, col):
-        if not self.is_valid_vertical_middle_cell(row, col):
-            raise InvalidCell
         self.table[row][col] = "m"
         self.set_cell(row + 1, col - 1, "w")
         self.set_cell(row + 1, col + 1, "w")
 
     def add_bottom_cell(self, row, col):
-        if not self.is_valid_bottom_cell(row, col):
-            raise InvalidCell
         self.table[row][col] = "b"
         self.set_cell(row + 1, col - 1, "w")
         self.set_cell(row + 1, col + 1, "w")
         self.set_cell(row + 1, col, "w")
 
     def add_center_cell(self, row, col):
-        if not self.is_valid_center_cell(row, col):
-            raise InvalidCell
         self.table[row][col] = "c"
         self.set_horizontal(row, col, "w")
         self.set_vertical(row, col, "w")
         self.set_diagonals(row, col, "w")
 
     def add_water_cell(self, row, col):
-        if not self.table[row][col] == "*":
-            raise InvalidCell
-
         self.table[row][col] = "w"
 
     #####################
@@ -319,7 +355,7 @@ class Board:
         up_right_diag = self.get_value(row - 1, col + 1)
         down_right_diag = self.get_value(row + 1, col + 1)
 
-        return all(x in ["*", "w"] for x in (up_right_diag, down_right_diag))
+        return all(x in ["*", "w", "i"] for x in (up_right_diag, down_right_diag))
 
     def is_valid_right_cell(self, row, col):
         if self.get_value(row, col) not in ["*", "r"]:
@@ -356,7 +392,7 @@ class Board:
         down_left_diag = self.get_value(row + 1, col - 1)
         down_right_diag = self.get_value(row + 1, col + 1)
 
-        return all(x in ["*", "w"] for x in (down_left_diag, down_right_diag))
+        return all(x in ["*", "w", "i"] for x in (down_left_diag, down_right_diag))
 
     def is_valid_bottom_cell(self, row, col):
         if self.get_value(row, col) not in ["*", "b"]:
@@ -492,6 +528,7 @@ class Bimaru(Problem):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
+        #print(state.board)
         return state.board.is_complete()
 
     def h(self, node: Node):
@@ -501,6 +538,6 @@ class Bimaru(Problem):
 if __name__ == "__main__":
     board = Board.parse_instance()
     problem = Bimaru(board)
-    goal = breadth_first_tree_search(problem)
-    print(goal)
+    goal = depth_first_tree_search(problem)
+    print(goal.state.board)
     a = 1
