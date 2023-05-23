@@ -21,12 +21,7 @@ from search import (
 )
 
 
-class InvalidCell(Exception):
-    ...
-
-class InvalidShip(Exception):
-    ...
-
+HINTS = []
 
 class BimaruState:
     state_id = 0
@@ -39,14 +34,11 @@ class BimaruState:
     def __lt__(self, other):
         return self.id < other.id
 
-    # TODO: outros metodos da classe
-
-
 class Board:
     def __init__(self,
                  table: numpy.chararray,
-                 rows: list,
-                 cols: list,
+                 rows: numpy.chararray,
+                 cols: numpy.chararray,
                  hints: list,
                  ships: list,
                  has_hints: bool,
@@ -133,19 +125,31 @@ class Board:
             return self.get_hint_actions(*self.hints.pop())
 
         actions = []
+
+        size = 0
+        # get ship
+        for c in range(len(self.ships)):
+            # iterate in reverse order
+            if self.ships[-(c + 1)]:
+                size = 4 - (c % 4)
+                break
+
+        if size == 0:
+            print("never reached")
+
         for i in range(10):
             if not self.rows[i]:
                 continue
             for j in range(10):
                 if not self.cols[j]:
                     continue
-                if self.table[i][j] == "*":
-                    if self.ships[0]:
+                if self.table[i][j] == ".":
+                    if size == 1:
                         actions.append((i, j, "c"))
-                    for s in range(2, 5):
-                        if self.ships[s - 1]:
-                            actions.append((i, j, "v", s))
-                            actions.append((i, j, "h", s))
+                    else:
+                        actions.append((i, j, "v", size))
+                        actions.append((i, j, "h", size))
+                    #actions.append((i, j, "w"))
 
         return [action for action in actions if self.is_valid_action(*action)]
 
@@ -322,43 +326,43 @@ class Board:
     # Cell validators
     #####################
     def is_valid_center_cell(self, row, col):
-        if self.get_value(row, col) != "*":
+        if self.get_value(row, col) != ".":
             return False
 
         vertical = self.adjacent_vertical_values(row, col)
         horizontal = self.adjacent_horizontal_values(row, col)
         diagonal = self.adjacent_diagonal_values(row, col)
 
-        return all(x in ["*", "w", "i"] for x in vertical + horizontal + diagonal)
+        return all(x in [".", "w", "i"] for x in vertical + horizontal + diagonal)
 
     def is_valid_left_cell(self, row, col):
-        if self.get_value(row, col) not in ["*", "l"]:
+        if self.get_value(row, col) not in [".", "l"]:
             return False
 
         left, right = self.adjacent_horizontal_values(row, col)
 
-        if right not in ["*", "m", "r"]:
+        if right not in [".", "m", "r"]:
             return False
 
         vertical = self.adjacent_vertical_values(row, col)
         diagonal = self.adjacent_diagonal_values(row, col)
 
-        return all(x in ["*", "w", "i"] for x in vertical + diagonal + (left,))
+        return all(x in [".", "w", "i"] for x in vertical + diagonal + (left,))
 
     def is_valid_horizontal_middle_cell(self, row, col):
-        if self.get_value(row, col) not in ["*", "m"]:
+        if self.get_value(row, col) not in [".", "m"]:
             return False
 
-        if self.get_value(row, col + 1) not in ["*", "m", "r"]:
+        if self.get_value(row, col + 1) not in [".", "m", "r"]:
             return False
 
         up_right_diag = self.get_value(row - 1, col + 1)
         down_right_diag = self.get_value(row + 1, col + 1)
 
-        return all(x in ["*", "w", "i"] for x in (up_right_diag, down_right_diag))
+        return all(x in [".", "w", "i"] for x in (up_right_diag, down_right_diag))
 
     def is_valid_right_cell(self, row, col):
-        if self.get_value(row, col) not in ["*", "r"]:
+        if self.get_value(row, col) not in [".", "r"]:
             return False
 
         up_right_diagonal = self.get_value(row - 1, col + 1)
@@ -366,36 +370,36 @@ class Board:
 
         right = self.get_value(row, col + 1)
 
-        return all(x in ["*", "w", "i"] for x in (up_right_diagonal, right, down_right_diagonal))
+        return all(x in [".", "w", "i"] for x in (up_right_diagonal, right, down_right_diagonal))
 
     def is_valid_top_cell(self, row, col):
-        if self.get_value(row, col) not in ["*", "t"]:
+        if self.get_value(row, col) not in [".", "t"]:
             return False
 
         top, bottom = self.adjacent_vertical_values(row, col)
 
-        if bottom not in ["*", "m", "b"]:
+        if bottom not in [".", "m", "b"]:
             return False
 
         horizontal = self.adjacent_horizontal_values(row, col)
         diagonal = self.adjacent_diagonal_values(row, col)
 
-        return all(x in ["*", "w", "i"] for x in horizontal + diagonal + (top,))
+        return all(x in [".", "w", "i"] for x in horizontal + diagonal + (top,))
 
     def is_valid_vertical_middle_cell(self, row, col):
-        if self.get_value(row, col) not in ["*", "m"]:
+        if self.get_value(row, col) not in [".", "m"]:
             return False
 
-        if self.get_value(row + 1, col) not in ["*", "m", "b"]:
+        if self.get_value(row + 1, col) not in [".", "m", "b"]:
             return False
 
         down_left_diag = self.get_value(row + 1, col - 1)
         down_right_diag = self.get_value(row + 1, col + 1)
 
-        return all(x in ["*", "w", "i"] for x in (down_left_diag, down_right_diag))
+        return all(x in [".", "w", "i"] for x in (down_left_diag, down_right_diag))
 
     def is_valid_bottom_cell(self, row, col):
-        if self.get_value(row, col) not in ["*", "b"]:
+        if self.get_value(row, col) not in [".", "b"]:
             return False
 
         down_left_diagonal = self.get_value(row + 1, col - 1)
@@ -403,7 +407,7 @@ class Board:
 
         bottom = self.get_value(row + 1, col)
 
-        return all(x in ["*", "w", "i"] for x in (down_left_diagonal, bottom, down_right_diagonal))
+        return all(x in [".", "w", "i"] for x in (down_left_diagonal, bottom, down_right_diagonal))
 
     #################
     # Setters
@@ -476,7 +480,7 @@ class Board:
         hints = []
 
         table = numpy.chararray((10, 10), unicode=True)
-        table[:] = "*"
+        table[:] = "."
 
         ships = [4, 3, 2, 1]
 
@@ -484,6 +488,7 @@ class Board:
             x, y, letter = hint.split()[1:]
             x, y = int(x), int(y)
             table[x][y] = letter.lower()
+            HINTS.append((x, y, letter))
 
             # don't add water to hints
             if letter != "W":
@@ -499,8 +504,18 @@ class Board:
         return cls(table, rows, cols, hints, ships, len(hints) != 0)
 
     def __str__(self):
-        return "\n".join("".join(cell for cell in row) for row in self.table)
+        s = ""
+        for hint in HINTS:
+            self.table[hint[0]][hint[1]] = hint[2]
+        for row in self.table:
+            for cell in row:
+                if cell != "w":
+                    s += cell
+                else:
+                    s += "."
+            s += "\n"
 
+        return s[:-1]
 
 class Bimaru(Problem):
     def __init__(self, board: Board):
